@@ -1,1 +1,7 @@
 this is amit.txt
+resolved conflicts from branch one
+from branch two
+from branch four
+added some more text
+
+
