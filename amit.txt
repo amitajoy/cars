@@ -1,3 +1,5 @@
+this is from cars
+
 this is amit.txt
 resolved conflicts from branch one
 from branch two
