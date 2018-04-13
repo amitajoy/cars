@@ -1,0 +1,138 @@
+
+import org.joda.time.IllegalFieldValueException;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.multipart.MultipartException;
+
+import java.util.List;
+
+/**
+ * Error handler for all validation and general exceptions
+ */
+@ControllerAdvice
+public class ErrorHandler {
+    private LcLogger logger = LcLoggerFactory.getLogger(getClass());
+
+    @ExceptionHandler(
+            {MethodArgumentNotValidException.class })
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseBody
+    @Order(value = 1)
+    public ErrorResponse processValidationErrors(MethodArgumentNotValidException manv) {
+        BindingResult bindingResult = manv.getBindingResult();
+        List<FieldError> fieldErrorList = bindingResult.getFieldErrors();
+        return processFieldErrors(fieldErrorList);
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ResponseBody
+    @ExceptionHandler({ LcObjectNotFoundException.class })
+    @Order(value = 2)
+    public ErrorResponse processLcObjectNotFoundException(LcObjectNotFoundException exp) {
+        ValidationError validationError = exp.getValidationError();
+        Error error = new Error(exp.getField(), validationError.getCode(), validationError.getMsg(),
+                LcExceptionRecoverability.RECOVERABLE.toString());
+        logger.info("LcObjectNotFoundException Occurred with code={} and msg={}",
+                error.getCode(), error.getMessage());
+        logger.info(exp);
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseBody
+    @ExceptionHandler({HttpMessageNotReadableException.class })
+    @Order(value = 3)
+    public ErrorResponse processHttpMessageNotReadableException(HttpMessageNotReadableException hmnrExcep) {
+        Error error = new Error("invalid-payload", "Unable to parse input payload");
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseBody
+    @ExceptionHandler({IllegalFieldValueException.class })
+    @Order(value = 4)
+    public ErrorResponse processIllegalFieldValueException(IllegalFieldValueException exception) {
+        Error error = new Error(String.valueOf(HttpStatus.BAD_REQUEST.value()),
+                exception.getMessage());
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseBody
+    @ExceptionHandler({LcInvestorValidationException.class, LcPortfolioValidationException.class})
+    @Order(value = 5)
+    public ErrorResponse processLcInvestorValidationException(LcValidationException exception) {
+        ValidationError validationError = exception.getValidationError();
+        Error error = new Error(exception.getField(), validationError.getCode(), validationError.getMsg());
+        error.setRecoverability(LcExceptionRecoverability.RECOVERABLE.toString());
+        logger.info("LcInvestorValidationException Occurred with code={} and msg={}",
+                error.getCode(), error.getMessage());
+        logger.info(exception);
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ResponseBody
+    @ExceptionHandler({LcOperationNotAllowedException.class })
+    @Order(value = 6)
+    public ErrorResponse processLcOperationNotAllowedException(LcOperationNotAllowedException brexp) {
+        ValidationError validationError = brexp.getValidationError();
+        Error error = validationError == null ? new Error("lc-operation-not-allowed", brexp.getMessage()) : new Error(validationError.getCode(), validationError.getMsg());
+        error.setRecoverability(LcExceptionRecoverability.UNRECOVERABLE.toString());
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseBody
+    @ExceptionHandler({LcBusinessRuntimeException.class })
+    @Order(value = 7)
+    public ErrorResponse processBusinessRuntimeException(LcBusinessRuntimeException brexp) {
+        ValidationError validationError = brexp.getValidationError();
+        Error error = validationError == null ? new Error("lc-business-runtime-exception", brexp.getMessage()) : new Error(validationError.getCode(), validationError.getMsg());
+        error.setRecoverability(LcExceptionRecoverability.UNRECOVERABLE.toString());
+        logger.info("LcBusinessRuntimeException Occurred with code={} and msg={}",
+                error.getCode(), error.getMessage());
+        logger.info(brexp);
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
+    @ResponseBody
+    @ExceptionHandler({HttpMediaTypeNotAcceptableException.class, MultipartException.class })
+    @Order(value = 8)
+    public ErrorResponse processHttpMediaNotAcceptableException(HttpMediaTypeNotAcceptableException ex) {
+        Error error = new Error(String.valueOf(HttpStatus.NOT_ACCEPTABLE.value()),
+                ex.getMessage());
+        error.setRecoverability(LcExceptionRecoverability.RECOVERABLE.toString());
+        return new ErrorResponse(error);
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseBody
+    @ExceptionHandler({Exception.class })
+    @Order(value = 9)
+    public ErrorResponse processOtherRuntimeException(Exception brexp) {
+        logger.error("Unknown Exception ", brexp);
+        Error error = new Error(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+                brexp.getMessage());
+        error.setRecoverability(LcExceptionRecoverability.UNRECOVERABLE.toString());
+        return new ErrorResponse(error);
+    }
+
+    private ErrorResponse processFieldErrors(List<FieldError> fieldErrors) {
+        ErrorResponse validationErrorModel = new ErrorResponse();
+        for (FieldError fieldError : fieldErrors) {
+            validationErrorModel.add(new Error(fieldError.getField(), fieldError.getCode(), fieldError.getDefaultMessage()));
+        }
+        return validationErrorModel;
+    }
+}
