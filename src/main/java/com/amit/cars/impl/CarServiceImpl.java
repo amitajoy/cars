@@ -27,14 +27,13 @@ public class CarServiceImpl implements CarService {
     }
 
     @Override
-    public List<com.amit.cars.model.Car> getCars() {
+    public List<Car> getCars() {
         return carRepository.findAll();
     }
 
     @Override
     public Car getCar(int id) {
-       //return carRepository.findOne(id);
-        return new Car(id,"mycar");
+       return carRepository.findOne(id);
     }
 
 }

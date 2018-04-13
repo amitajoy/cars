@@ -9,11 +9,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.inject.Inject;
 import java.util.List;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
 
 @RestController
-@RequestMapping(value = "/cars")
+@RequestMapping(value = CarsController.CARS_RESOURCE)
+@Consumes({MediaType.APPLICATION_JSON})
+@Produces({MediaType.APPLICATION_JSON})
 public class CarsController {
+    public static final String CARS_RESOURCE = "/cars";
     @Inject
     private CarService carService;
 
@@ -28,18 +34,6 @@ public class CarsController {
         Car car = carService.getCar(carId);
         return ResponseEntity.ok().body(car);
     }
-
-//    @RequestMapping(method = {RequestMethod.GET, RequestMethod.POST} , value = "/{carname}")
-//    public ResponseEntity<Car> getCarByName(@PathVariable("carname") String carName){
-//        Car car = carService.getCar(carName);
-//        return ResponseEntity.ok().body(car);
-//    }
-
-//    @RequestMapping(method = {RequestMethod.GET, RequestMethod.POST} , value = "/{carid}/{carname}")
-//    public ResponseEntity<Car> getCarByIdAndName(@PathVariable("carid") Integer carId,@PathVariable("carname") String carName){
-//        Car car = carService.getCar(carId, carName);
-//        return ResponseEntity.ok().body(car);
-//    }
 
     @RequestMapping(method = {RequestMethod.PUT} , value = "/{carid}/{carname}")
     public ResponseEntity<Car> addCar(@PathVariable("carid") Integer carId,@PathVariable("carname") String carName){
